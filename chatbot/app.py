@@ -2,7 +2,13 @@ import streamlit as st
 import google.generativeai as genai
 import requests
 from bs4 import BeautifulSoup
-import speech_recognition as sr
+
+# Attempt to import speech_recognition; if unavailable, disable voice input.
+try:
+    import speech_recognition as sr
+    voice_supported = True
+except Exception as e:
+    voice_supported = False
 
 # Configure Gemini API (Replace with your actual API key)
 genai.configure(api_key="AIzaSyB_Sfa6qt63_Ap-Qjd86Tavmmg2iiSLgn4")
@@ -66,26 +72,37 @@ language = st.selectbox("Select voice recognition language", options=["en-US", "
 # User text input
 user_query = st.text_input("💬 Your Question:")
 
-# Voice input button with auto-send functionality
-if st.button("🎤 Use Voice Input"):
-    voice_query = get_voice_input(language)
-    if voice_query:
-        st.success(f"🎙️ You said: {voice_query}")
-        user_query = voice_query  # Update text field with recognized speech
-        with st.spinner("Generating response..."):
-            context = st.session_state.manipal_data
-            response = model.generate_content(f"{context}\n\nUser Query: {user_query}")
-            st.markdown(f"**🤖 Chatbot:** {response.text}", unsafe_allow_html=True)
-    else:
-        st.warning("No voice input detected.")
+# Voice input button with auto-send functionality (only if voice input is supported)
+if voice_supported:
+    if st.button("🎤 Use Voice Input"):
+        voice_query = get_voice_input(language)
+        if voice_query:
+            st.success(f"🎙️ You said: {voice_query}")
+            user_query = voice_query  # Update text field with recognized speech
+            with st.spinner("Generating response..."):
+                context = st.session_state.manipal_data
+                prompt = f"{context}\n\nUser Query: {user_query}"
+                try:
+                    response = model.generate(prompt)
+                    st.markdown(f"**🤖 Chatbot:** {response.text}", unsafe_allow_html=True)
+                except Exception as e:
+                    st.error(f"❌ Error generating response: {e}")
+        else:
+            st.warning("No voice input detected.")
+else:
+    st.warning("Voice input is not supported in this deployment.")
 
-# Send button for text input (if not using voice input)
+# Send button for text input
 if st.button("🚀 Send"):
     if user_query:
         with st.spinner("Generating response..."):
             context = st.session_state.manipal_data
-            response = model.generate_content(f"{context}\n\nUser Query: {user_query}")
-            st.markdown(f"**🤖 Chatbot:** {response.text}", unsafe_allow_html=True)
+            prompt = f"{context}\n\nUser Query: {user_query}"
+            try:
+                response = model.generate(prompt)
+                st.markdown(f"**🤖 Chatbot:** {response.text}", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"❌ Error generating response: {e}")
     else:
         st.warning("⚠️ Please enter a question or use the voice input feature.")
 
