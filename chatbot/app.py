@@ -6,7 +6,7 @@ import speech_recognition as sr
 import os
 
 # Load API key securely from Streamlit Secrets or Environment Variable
-api_key = st.secrets["AIzaSyB_Sfa6qt63_Ap-Qjd86Tavmmg2iiSLgn4"] if "AIzaSyB_Sfa6qt63_Ap-Qjd86Tavmmg2iiSLgn4" in st.secrets else os.getenv("AIzaSyB_Sfa6qt63_Ap-Qjd86Tavmmg2iiSLgn4")
+api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
 if not api_key:
     st.error("❌ API key is missing! Please set it in Streamlit Secrets or as an environment variable.")
     st.stop()
@@ -24,25 +24,26 @@ def scrape_manipal_info():
     return soup.get_text()
 
 # Store website content in cache for quick responses
-if "manipal_data" not in st.session_state:
-    st.session_state.manipal_data = scrape_manipal_info()
+with st.spinner("Scraping Manipal Hospital website..."):
+    manipal_data = scrape_manipal_info()
 
 # Function to capture voice input with timeout and error handling
-def get_voice_input(language="en-US"):
+def get_voice_input(language="en-US", retries=3):
     recognizer = sr.Recognizer()
-    try:
-        with sr.Microphone() as source:
-            st.write("🎙️ Listening... Speak now!")
-            recognizer.adjust_for_ambient_noise(source, duration=1)
-            audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
-            text = recognizer.recognize_google(audio, language=language)
-            return text
-    except sr.UnknownValueError:
-        st.error("❌ Could not understand the audio. Please try again.")
-    except sr.RequestError:
-        st.error("❌ Speech recognition service is unavailable. Check your internet connection.")
-    except Exception as e:
-        st.error(f"❌ Voice input error: {e}")
+    for _ in range(retries):
+        try:
+            with sr.Microphone() as source:
+                st.write("🎙️ Listening... Speak now!")
+                recognizer.adjust_for_ambient_noise(source, duration=1)
+                audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
+                text = recognizer.recognize_google(audio, language=language)
+                return text
+        except sr.UnknownValueError:
+            st.error("❌ Could not understand the audio. Please try again.")
+        except sr.RequestError:
+            st.error("❌ Speech recognition service is unavailable. Check your internet connection.")
+        except Exception as e:
+            st.error(f"❌ Voice input error: {e}")
     return None
 
 # Streamlit UI with enhanced styles
@@ -82,9 +83,8 @@ if st.button("🎤 Use Voice Input"):
 if st.button("🚀 Send"):
     if user_query:
         with st.spinner("Generating response..."):
-            context = st.session_state.manipal_data
             try:
-                response = model.generate_content(f"{context}\n\nUser Query: {user_query}")
+                response = model.generate_content(f"{manipal_data}\n\nUser Query: {user_query}")
                 st.markdown(f"**🤖 Chatbot:** {response.text}", unsafe_allow_html=True)
             except Exception as e:
                 st.error(f"❌ Error generating response: {e}")
