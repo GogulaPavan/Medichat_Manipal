@@ -1,6 +1,8 @@
-streamlit
-google-generativeai
-requests
-beautifulsoup4
-SpeechRecognition
-pyaudio
+streamlit==1.32.0
+google-generativeai==0.3.2
+requests==2.31.0
+beautifulsoup4==4.12.3
+SpeechRecognition==3.10.0
+sounddevice==0.4.6
+soundfile==0.12.1
+pip>=25.0.1
