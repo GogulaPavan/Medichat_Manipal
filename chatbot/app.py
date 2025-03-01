@@ -6,7 +6,7 @@ import speech_recognition as sr
 import os
 
 # Load API key securely from Streamlit Secrets or Environment Variable
-api_key = st.secrets["GEMINI_API_KEY"] if "AIzaSyB_Sfa6qt63_Ap-Qjd86Tavmmg2iiSLgn4" in st.secrets else os.getenv("AIzaSyB_Sfa6qt63_Ap-Qjd86Tavmmg2iiSLgn4")
+api_key = st.secrets["AIzaSyB_Sfa6qt63_Ap-Qjd86Tavmmg2iiSLgn4"] if "AIzaSyB_Sfa6qt63_Ap-Qjd86Tavmmg2iiSLgn4" in st.secrets else os.getenv("AIzaSyB_Sfa6qt63_Ap-Qjd86Tavmmg2iiSLgn4")
 if not api_key:
     st.error("❌ API key is missing! Please set it in Streamlit Secrets or as an environment variable.")
     st.stop()
