@@ -2,14 +2,17 @@ import streamlit as st
 import google.generativeai as genai
 import requests
 from bs4 import BeautifulSoup
-import speech_recognition as sr
 import logging
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # Configure Gemini API using Streamlit secrets
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+except KeyError:
+    st.error("❌ Gemini API key not found. Please add it to Streamlit secrets.")
+    st.stop()
 
 # Initialize the model
 model = genai.GenerativeModel("models/gemini-1.5-pro")
@@ -19,24 +22,28 @@ model = genai.GenerativeModel("models/gemini-1.5-pro")
 def scrape_manipal_info():
     try:
         url = "https://www.manipalhospitals.com/vijayawada/"
-        response = requests.get(url)
-        response.raise_for_status()
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()  # Raise an error for bad status codes
         soup = BeautifulSoup(response.text, "html.parser")
         return soup.get_text()
     except requests.exceptions.RequestException as e:
-        st.error(f"Error fetching data: {e}")
+        st.error(f"❌ Error fetching data from Manipal Hospital website: {e}")
+        return ""
+    except Exception as e:
+        st.error(f"❌ Unexpected error during web scraping: {e}")
         return ""
 
 # Store website content in cache for quick responses
 if "manipal_data" not in st.session_state:
     st.session_state.manipal_data = scrape_manipal_info()
 
-# Function to capture voice input with timeout and error handling, supporting multiple languages
+# Function to capture voice input (disabled in cloud environment)
 def get_voice_input(language="en-US"):
     if not st.secrets.get("ENABLE_VOICE_INPUT", False):
-        st.warning("Voice input is disabled in this environment.")
+        st.warning("🎤 Voice input is disabled in this environment.")
         return None
     try:
+        import speech_recognition as sr
         recognizer = sr.Recognizer()
         with sr.Microphone() as source:
             st.write("🎙️ Listening... Speak now!")
@@ -44,6 +51,8 @@ def get_voice_input(language="en-US"):
             audio = recognizer.listen(source, timeout=5, phrase_time_limit=10)
             text = recognizer.recognize_google(audio, language=language)
             return text
+    except ImportError:
+        st.error("❌ SpeechRecognition library is not installed.")
     except sr.UnknownValueError:
         st.error("❌ Could not understand the audio. Please try again.")
     except sr.RequestError:
@@ -84,20 +93,17 @@ if st.button("🎤 Use Voice Input"):
     if voice_query:
         st.success(f"🎙️ You said: {voice_query}")
         user_query = voice_query  # Update text field with recognized speech
-        with st.spinner("Generating response..."):
-            context = st.session_state.manipal_data
-            response = model.generate_content(f"{context}\n\nUser Query: {user_query}")
-            st.markdown(f"**🤖 Chatbot:** {response.text}", unsafe_allow_html=True)
-    else:
-        st.warning("No voice input detected.")
 
 # Send button for text input (if not using voice input)
 if st.button("🚀 Send"):
     if user_query:
         with st.spinner("Generating response..."):
-            context = st.session_state.manipal_data
-            response = model.generate_content(f"{context}\n\nUser Query: {user_query}")
-            st.markdown(f"**🤖 Chatbot:** {response.text}", unsafe_allow_html=True)
+            try:
+                context = st.session_state.manipal_data
+                response = model.generate_content(f"{context}\n\nUser Query: {user_query}")
+                st.markdown(f"**🤖 Chatbot:** {response.text}", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"❌ Error generating response: {e}")
     else:
         st.warning("⚠️ Please enter a question or use the voice input feature.")
 
